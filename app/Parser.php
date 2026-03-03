@@ -10,10 +10,8 @@ final class Parser
     private const int ARRAY_SIZE = (2 ** self::DATE_BITS) * self::URL_COUNT;
     private const int DATE_MASK = 2 ** self::DATE_BITS - 1;
 
-    private const int MAX_LINE_LENGTH = 101;
     private const int BUFFER_SIZE = 1024 * 128;
     private const int PATH_OFFSET = 25;
-    private const int MAX_OFFSET = self::BUFFER_SIZE - self::MAX_LINE_LENGTH + self::PATH_OFFSET;
 
     public function parse(string $inputPath, string $outputPath): void
     {
@@ -40,11 +38,13 @@ final class Parser
         }
 
         \stream_set_read_buffer($inputStream, 0);
-
         $buffer = \fread($inputStream, self::BUFFER_SIZE);
-        while (\strlen($buffer) >= self::BUFFER_SIZE) {
+
+        while (\strlen($buffer) > 0) {
             $pathOffset = self::PATH_OFFSET;
-            while ($pathOffset <= self::MAX_OFFSET) {
+            $maxOffset = \strrpos($buffer, "\n");
+
+            while ($pathOffset < $maxOffset) {
                 $commaOffset = \strpos($buffer, ',', $pathOffset);
                 $resultCounts[
                     $pathToHash[\substr($buffer, $pathOffset, $commaOffset - $pathOffset)] |
@@ -53,19 +53,7 @@ final class Parser
                 $pathOffset = $commaOffset + 52;
             }
 
-            $remainingOffset = $pathOffset - self::PATH_OFFSET;
-            $buffer = \substr($buffer, $remainingOffset) . \fread($inputStream, $remainingOffset);
-        }
-
-        $pathOffset = self::PATH_OFFSET;
-        $maxOffset = \strlen($buffer);
-        while ($pathOffset < $maxOffset) {
-            $commaOffset = \strpos($buffer, ',', $pathOffset);
-            $resultCounts[
-                $pathToHash[\substr($buffer, $pathOffset, $commaOffset - $pathOffset)] |
-                $dateToHash[\substr($buffer, $commaOffset + 4, 7)]
-            ]++;
-            $pathOffset = $commaOffset + 52;
+            $buffer = \substr($buffer, $maxOffset + 1) . \fread($inputStream, self::BUFFER_SIZE);
         }
 
         \fclose($inputStream);
