@@ -12,6 +12,7 @@ final class Parser
 
     private const int MAX_LINE_LENGTH = 101;
     private const int BUFFER_SIZE = 1024 * 128;
+    private const int PATH_OFFSET = 25;
 
     public function parse(string $inputPath, string $outputPath): void
     {
@@ -32,42 +33,39 @@ final class Parser
         $resultCounts = \array_fill(0, self::ARRAY_SIZE, 0);
 
         while ($nextHash < self::URL_COUNT && $line = \fgets($inputStream)) {
-            $path = \substr($line, 25, -27);
+            $path = \substr($line, self::PATH_OFFSET, -27);
             $pathToHash[$path] ??= $nextHash++ << self::DATE_BITS;
             $resultCounts[$pathToHash[$path] | $dateToHash[\substr($line, -23, 7)]]++;
         }
 
         \stream_set_read_buffer($inputStream, 0);
 
-        $buffer = '';
-        $offset = 0;
-        while (true) {
-            $buffer .= \fread($inputStream, self::BUFFER_SIZE - \strlen($buffer));
-            if (\strlen($buffer) < self::BUFFER_SIZE) {
-                break;
-            }
-
-            $maxOffset = \strlen($buffer) - self::MAX_LINE_LENGTH;
+        $buffer = \fread($inputStream, self::BUFFER_SIZE);
+        while (\strlen($buffer) >= self::BUFFER_SIZE) {
+            $offset = self::PATH_OFFSET;
+            $maxOffset = \strlen($buffer) - self::MAX_LINE_LENGTH + self::PATH_OFFSET;
             while ($offset <= $maxOffset) {
                 $comma = \strpos($buffer, ',', $offset);
                 $resultCounts[
-                    $pathToHash[\substr($buffer, $offset + 25, $comma - $offset - 25)] |
+                    $pathToHash[\substr($buffer, $offset, $comma - $offset)] |
                     $dateToHash[\substr($buffer, $comma + 4, 7)]
                 ]++;
-                $offset = $comma + 27;
+                $offset = $comma + 52;
             }
 
-            $buffer = \substr($buffer, $offset);
-            $offset = 0;
+            $remainingOffset = $offset - self::PATH_OFFSET;
+            $buffer = \substr($buffer, $remainingOffset) . \fread($inputStream, $remainingOffset);
         }
 
-        while ($offset < \strlen($buffer)) {
+        $offset = self::PATH_OFFSET;
+        $maxOffset = \strlen($buffer);
+        while ($offset < $maxOffset) {
             $comma = \strpos($buffer, ',', $offset);
             $resultCounts[
-                $pathToHash[\substr($buffer, $offset + 25, $comma - $offset - 25)] |
+                $pathToHash[\substr($buffer, $offset, $comma - $offset)] |
                 $dateToHash[\substr($buffer, $comma + 4, 7)]
             ]++;
-            $offset = $comma + 27;
+            $offset = $comma + 52;
         }
 
         \fclose($inputStream);
