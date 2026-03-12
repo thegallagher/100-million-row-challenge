@@ -29,12 +29,12 @@ final class Parser
         $inputStream = \fopen($inputPath, 'r');
         $nextHash = 0;
         $pathToHash = [];
-        $resultCounts = \array_fill(0, self::ARRAY_SIZE, 0);
+        $resultCounts = \array_fill(0, self::ARRAY_SIZE, 0.0);
 
         while ($nextHash < self::URL_COUNT && $line = \fgets($inputStream)) {
             $path = \substr($line, self::PATH_OFFSET, -27);
             $pathToHash[$path] ??= $nextHash++ << self::DATE_BITS;
-            $resultCounts[$pathToHash[$path] | $dateToHash[\substr($line, -27, 11)]]++;
+            $resultCounts[$pathToHash[$path] | $dateToHash[\substr($line, -27, 11)]] += 1.0;
         }
 
         \stream_set_read_buffer($inputStream, 0);
@@ -49,7 +49,7 @@ final class Parser
                 $resultCounts[
                     $pathToHash[\substr($buffer, $pathOffset, $commaOffset - $pathOffset)] |
                     $dateToHash[\substr($buffer, $commaOffset, 11)]
-                ]++;
+                ] += 1.0;
                 $pathOffset = $commaOffset + 52;
             }
 
@@ -65,7 +65,7 @@ final class Parser
             $path = "/blog/{$path}";
             for ($i = $pathHash; $i < $end; $i++) {
                 if ($resultCounts[$i] > 0) {
-                    $outputData[$path][$hashToDate[$i & self::DATE_MASK]] = $resultCounts[$i];
+                    $outputData[$path][$hashToDate[$i & self::DATE_MASK]] = (int) $resultCounts[$i];
                 }
             }
         }
