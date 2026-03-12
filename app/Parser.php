@@ -21,7 +21,7 @@ final class Parser
         $hashToDate = [];
         for ($i = 0; $i < self::DATE_COUNT; $i++) {
             $dateStr = $date->format('Y-m-d');
-            $dateToHash[\substr($dateStr, 3)] = $i;
+            $dateToHash[",{$dateStr}"] = $i;
             $date->add($day);
             $hashToDate[] = $dateStr;
         }
@@ -34,7 +34,7 @@ final class Parser
         while ($nextHash < self::URL_COUNT && $line = \fgets($inputStream)) {
             $path = \substr($line, self::PATH_OFFSET, -27);
             $pathToHash[$path] ??= $nextHash++ << self::DATE_BITS;
-            $resultCounts[$pathToHash[$path] | $dateToHash[\substr($line, -23, 7)]]++;
+            $resultCounts[$pathToHash[$path] | $dateToHash[\substr($line, -27, 11)]]++;
         }
 
         \stream_set_read_buffer($inputStream, 0);
@@ -48,7 +48,7 @@ final class Parser
                 $commaOffset = \strpos($buffer, ',', $pathOffset);
                 $resultCounts[
                     $pathToHash[\substr($buffer, $pathOffset, $commaOffset - $pathOffset)] |
-                    $dateToHash[\substr($buffer, $commaOffset + 4, 7)]
+                    $dateToHash[\substr($buffer, $commaOffset, 11)]
                 ]++;
                 $pathOffset = $commaOffset + 52;
             }
